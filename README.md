@@ -1,36 +1,63 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Insight Workspace (MVP)
 
-## Getting Started
+Web-only multi-tenant analytics workspace inspired by Adobe CJA interaction patterns:
 
-First, run the development server:
+- Projects -> Panels -> Freeform Table + Visualizations
+- Left components rail (Dimensions, Metrics, Segments, Date Ranges)
+- Drag-and-drop Dimensions/Metrics into table rows/columns with immediate query updates
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Stack
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- Next.js (App Router) + React + TypeScript
+- Tailwind CSS
+- Prisma + PostgreSQL
+- Auth.js (NextAuth Credentials, optional Google OAuth)
+- Zustand (workspace state)
+- dnd-kit (drag/drop)
+- TanStack Table + virtualization
+- Vega-Lite charts (via `react-vega`)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Why Vega-Lite
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Vega-Lite is declarative and data-oriented, which is a good fit for analytics surfaces where charts are tightly coupled to query output and need consistent JSON configuration.
 
-## Learn More
+## Getting started
 
-To learn more about Next.js, take a look at the following resources:
+1. Copy `.env.example` to `.env`
+2. Run dependencies:
+   - `npm install`
+3. Generate Prisma client + run migrations:
+   - `npm run db:migrate`
+4. Seed data:
+   - `npm run db:seed`
+5. Start:
+   - `npm run dev`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Optional local auth bypass
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+For fast local UI development without login:
 
-## Deploy on Vercel
+- `AUTH_BYPASS=1`
+- `NEXT_PUBLIC_AUTH_BYPASS=1`
+- `E2E_TEST_MODE=1` (uses in-memory data adapter, no Postgres required)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Scripts
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `npm run lint`
+- `npm run format`
+- `npm run typecheck`
+- `npm run test`
+- `npm run test:e2e`
+- `npm run db:migrate`
+- `npm run db:seed`
+
+## Required routes
+
+- `/projects`
+- `/workspace/[projectId]`
+- `/settings/api-keys`
+- `/org`
+
+## CI
+
+GitHub Actions workflow is in `.github/workflows/ci.yml` and runs lint, typecheck, and unit tests on PRs.

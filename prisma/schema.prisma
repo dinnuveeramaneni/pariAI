@@ -1,0 +1,274 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum OrganizationRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum MemberStatus {
+  ACTIVE
+  INVITED
+  DISABLED
+}
+
+enum ComponentType {
+  DIMENSION
+  METRIC
+  SEGMENT
+  DATE_RANGE
+}
+
+model User {
+  id                  String               @id @default(cuid())
+  email               String               @unique
+  passwordHash        String?
+  name                String?
+  image               String?
+  emailVerified       DateTime?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  memberships         OrganizationMember[]
+  createdOrganizations Organization[]      @relation("OrgCreator")
+  invitesSent         Invitation[]         @relation("InviteSender")
+  projectsCreated     Project[]            @relation("ProjectCreator")
+  projectVersionsCreated ProjectVersion[]  @relation("ProjectVersionCreator")
+  panelsCreated       Panel[]              @relation("PanelCreator")
+  visualizationsCreated Visualization[]    @relation("VisualizationCreator")
+  apiKeysCreated      ApiKey[]             @relation("ApiKeyCreator")
+  auditLogs           AuditLog[]           @relation("AuditActor")
+  accounts            Account[]
+  sessions            Session[]
+}
+
+model Organization {
+  id          String               @id @default(cuid())
+  name        String
+  slug        String               @unique
+  createdById String
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  createdBy   User                 @relation("OrgCreator", fields: [createdById], references: [id])
+  memberships OrganizationMember[]
+  invitations Invitation[]
+  apiKeys     ApiKey[]
+  projects    Project[]
+  projectVersions ProjectVersion[]
+  panels      Panel[]
+  visualizations Visualization[]
+  components  Component[]
+  events      Event[]
+  auditLogs   AuditLog[]
+}
+
+model OrganizationMember {
+  id        String           @id @default(cuid())
+  orgId     String
+  userId    String
+  role      OrganizationRole @default(MEMBER)
+  status    MemberStatus     @default(ACTIVE)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  org       Organization     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, userId])
+  @@index([userId])
+}
+
+model Invitation {
+  id          String           @id @default(cuid())
+  orgId        String
+  email        String
+  role         OrganizationRole
+  tokenHash    String
+  expiresAt    DateTime
+  invitedById  String
+  createdAt    DateTime         @default(now())
+  acceptedAt   DateTime?
+  org          Organization     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  invitedBy    User             @relation("InviteSender", fields: [invitedById], references: [id])
+
+  @@index([orgId, email])
+}
+
+model ApiKey {
+  id         String    @id @default(cuid())
+  orgId      String
+  name       String
+  prefix     String    @unique
+  secretHash String
+  revokedAt  DateTime?
+  createdById String
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+  org        Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  createdBy  User      @relation("ApiKeyCreator", fields: [createdById], references: [id])
+
+  @@index([orgId])
+}
+
+model Project {
+  id          String          @id @default(cuid())
+  orgId       String
+  name        String
+  description String?
+  createdById String
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  archivedAt  DateTime?
+  org         Organization    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  createdBy   User            @relation("ProjectCreator", fields: [createdById], references: [id])
+  versions    ProjectVersion[]
+  panels      Panel[]
+  visualizations Visualization[]
+
+  @@index([orgId, updatedAt])
+  @@unique([id, orgId])
+}
+
+model ProjectVersion {
+  id           String       @id @default(cuid())
+  projectId    String
+  orgId        String
+  versionNo    Int
+  schemaVersion Int
+  payload      Json
+  checksum     String
+  createdById  String
+  createdAt    DateTime     @default(now())
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  org          Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  createdBy    User         @relation("ProjectVersionCreator", fields: [createdById], references: [id])
+
+  @@unique([projectId, versionNo])
+  @@index([orgId, createdAt])
+}
+
+model Component {
+  id         String        @id @default(cuid())
+  orgId      String
+  type       ComponentType
+  key        String
+  label      String
+  definition Json
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  org        Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, key])
+  @@index([orgId, type])
+}
+
+model Panel {
+  id           String        @id @default(cuid())
+  orgId        String
+  projectId    String
+  createdById  String?
+  title        String
+  position     Int           @default(0)
+  tableConfig  Json?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  org          Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  project      Project       @relation(fields: [projectId, orgId], references: [id, orgId], onDelete: Cascade)
+  createdBy    User?         @relation("PanelCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  visualizations Visualization[]
+
+  @@index([orgId, projectId, position])
+  @@unique([id, orgId])
+}
+
+model Visualization {
+  id          String       @id @default(cuid())
+  orgId       String
+  projectId   String
+  panelId     String
+  createdById String?
+  type        String
+  title       String?
+  config      Json
+  position    Int          @default(0)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  project     Project      @relation(fields: [projectId, orgId], references: [id, orgId], onDelete: Cascade)
+  panel       Panel        @relation(fields: [panelId, orgId], references: [id, orgId], onDelete: Cascade)
+  createdBy   User?        @relation("VisualizationCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([orgId, projectId, panelId, position])
+}
+
+model Event {
+  id        String       @id @default(cuid())
+  orgId     String
+  eventId   String
+  eventName String
+  timestamp DateTime
+  userId    String?
+  sessionId String?
+  properties Json
+  ingestedAt DateTime    @default(now())
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, eventId])
+  @@index([orgId, timestamp])
+  @@index([orgId, eventName])
+}
+
+model AuditLog {
+  id          String       @id @default(cuid())
+  orgId       String
+  actorUserId String?
+  action      String
+  targetType  String
+  targetId    String?
+  metadata    Json?
+  createdAt   DateTime     @default(now())
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  actor       User?        @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([orgId, createdAt])
+}
+
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?
+  access_token       String?
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?
+  session_state      String?
+  user               User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
