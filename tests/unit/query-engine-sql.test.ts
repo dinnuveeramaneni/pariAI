@@ -142,6 +142,26 @@ describe("SQL query engine", () => {
     expect(text).toContain(`"properties"->>'brand'`);
   });
 
+  it("supports hour dimension SQL mapping", async () => {
+    queryRawMock
+      .mockResolvedValueOnce([{ d0: "2026-02-01T10:00:00Z", m0: "4" }])
+      .mockResolvedValueOnce([{ m0: "4" }]);
+
+    const { runTableQuery } = await import("@/lib/query-engine-sql");
+    await runTableQuery({
+      orgId: "org_a",
+      dateRange: { from: "2026-02-01", to: "2026-02-28" },
+      rows: ["hour"],
+      metrics: ["events"],
+      limit: 25,
+    });
+
+    const firstSql = queryRawMock.mock.calls[0][0];
+    const text = sqlText(firstSql);
+
+    expect(text).toContain(`DATE_TRUNC('hour', "timestamp")`);
+  });
+
   it("supports net demand metric SQL mapping", async () => {
     queryRawMock
       .mockResolvedValueOnce([{ d0: "Gap", m0: "88.5" }])
