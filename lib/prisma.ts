@@ -8,23 +8,29 @@ declare global {
     | undefined;
 }
 
-const useMemory = process.env.E2E_TEST_MODE === "1";
+const useMemory =
+  process.env.E2E_TEST_MODE === "1" ||
+  (process.env.NODE_ENV !== "production" && process.env.PRISMA_FORCE_DB !== "1");
 
-const prismaClient =
-  global.prismaGlobal ??
-  new PrismaClient({
-    log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],
-  });
+const prismaClient = useMemory
+  ? undefined
+  : global.prismaGlobal ??
+    new PrismaClient({
+      log:
+        process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],
+    });
 
-if (process.env.NODE_ENV !== "production") {
+if (!useMemory && process.env.NODE_ENV !== "production") {
   global.prismaGlobal = prismaClient;
 }
 
-const prismaMemory = global.prismaMemoryGlobal ?? createMemoryPrismaClient();
-if (process.env.NODE_ENV !== "production") {
+const prismaMemory = useMemory
+  ? global.prismaMemoryGlobal ?? createMemoryPrismaClient()
+  : undefined;
+if (useMemory && process.env.NODE_ENV !== "production") {
   global.prismaMemoryGlobal = prismaMemory;
 }
 
 export const prisma = (useMemory
-  ? prismaMemory
-  : prismaClient) as unknown as PrismaClient;
+  ? prismaMemory!
+  : prismaClient!) as unknown as PrismaClient;

@@ -165,6 +165,7 @@ describe("workspace store", () => {
     expect(mapToDimensionKey("channel")).toBe("channel");
     expect(mapToDimensionKey("brand")).toBe("brand");
     expect(mapToDimensionKey("dimension:brandCode")).toBe("brand");
+    expect(mapToDimensionKey("dimension:hour")).toBe("hour");
     expect(mapToMetricKey("metric:event_count")).toBe("events");
     expect(mapToMetricKey("metric:net_demand")).toBe("netDemand");
     expect(mapToMetricKey("users")).toBe("users");

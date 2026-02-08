@@ -746,6 +746,9 @@ function parsePromptCommand(input: string): PromptCommand | null {
     if (text.includes("product")) {
       return "product";
     }
+    if (text.includes("hour")) {
+      return "hour";
+    }
     if (text.includes("day")) {
       return "day";
     }

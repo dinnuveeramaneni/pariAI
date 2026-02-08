@@ -89,6 +89,7 @@ const LEGACY_DIMENSION_MAP: Record<string, DimensionKey> = {
   product: "product",
   campaign: "campaign",
   day: "day",
+  hour: "hour",
   country: "channel",
   page: "product",
 };

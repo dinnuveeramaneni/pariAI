@@ -74,6 +74,9 @@ function readDimensionFromEvent(
   if (dimension === "eventName") {
     return String(event.eventName ?? "(none)");
   }
+  if (dimension === "hour") {
+    return formatHour(event.timestamp);
+  }
   return formatDay(event.timestamp);
 }
 
@@ -227,6 +230,9 @@ function getDimensionExpr(dimension: DimensionKey): Prisma.Sql {
   }
   if (dimension === "eventName") {
     return Prisma.sql`COALESCE("eventName", '(none)')`;
+  }
+  if (dimension === "hour") {
+    return hourBucketExpr();
   }
 
   return dayBucketExpr();

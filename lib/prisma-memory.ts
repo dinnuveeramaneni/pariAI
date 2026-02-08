@@ -740,6 +740,25 @@ export function createMemoryPrismaClient() {
           }
           return true;
         }).length,
+      deleteMany: async ({ where }: any) => {
+        const before = state.events.length;
+        state.events = state.events.filter((entry) => {
+          if (where?.orgId && entry.orgId !== where.orgId) {
+            return true;
+          }
+          if (where?.eventId?.in && !where.eventId.in.includes(entry.eventId)) {
+            return true;
+          }
+          if (where?.timestamp?.gte && entry.timestamp < where.timestamp.gte) {
+            return true;
+          }
+          if (where?.timestamp?.lte && entry.timestamp > where.timestamp.lte) {
+            return true;
+          }
+          return false;
+        });
+        return { count: before - state.events.length };
+      },
       createMany: async ({ data, skipDuplicates }: any) => {
         let count = 0;
         for (const entry of data as Array<Record<string, unknown>>) {

@@ -40,6 +40,12 @@ const BASE_COMPONENTS: SeedComponent[] = [
     definition: { source: "timestamp", granularity: "day" },
   },
   {
+    type: ComponentType.DIMENSION,
+    key: "hour",
+    label: "Hour",
+    definition: { source: "timestamp", granularity: "hour" },
+  },
+  {
     type: ComponentType.METRIC,
     key: "events",
     label: "Events",

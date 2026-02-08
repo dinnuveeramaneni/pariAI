@@ -5,6 +5,7 @@ export const SEMANTIC_DIMENSIONS = [
   "campaign",
   "eventName",
   "day",
+  "hour",
 ] as const;
 
 export const SEMANTIC_METRICS = [
