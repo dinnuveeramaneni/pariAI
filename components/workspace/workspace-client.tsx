@@ -1130,12 +1130,16 @@ export function WorkspaceClient({ projectId, initialOrgId }: WorkspaceClientProp
   }, [orgId, payloadSignature, saveProject]);
 
   const setPrimaryRowDimension = useCallback(
-    (panelId: string, dimensionKey: string) => {
+    (panelId: string, dimensionKey: string): boolean => {
       const panel = useWorkspaceStore
         .getState()
         .panels.find((entry) => entry.id === panelId);
       if (!panel) {
-        return;
+        return false;
+      }
+
+      if (panel.query.rows.length === 1 && panel.query.rows[0] === dimensionKey) {
+        return false;
       }
 
       for (const row of panel.query.rows) {
@@ -1144,8 +1148,28 @@ export function WorkspaceClient({ projectId, initialOrgId }: WorkspaceClientProp
         }
       }
       addRowDimension(panelId, dimensionKey);
+      return true;
     },
     [addRowDimension, removeRowDimension],
+  );
+
+  const addBreakdownRowDimension = useCallback(
+    (panelId: string, dimensionKey: string): boolean => {
+      const panel = useWorkspaceStore
+        .getState()
+        .panels.find((entry) => entry.id === panelId);
+      if (!panel) {
+        return false;
+      }
+
+      if (panel.query.rows.includes(dimensionKey as DimensionKey)) {
+        return false;
+      }
+
+      addRowDimension(panelId, dimensionKey);
+      return true;
+    },
+    [addRowDimension],
   );
 
   const onDragEnd = useCallback(
@@ -1170,8 +1194,22 @@ export function WorkspaceClient({ projectId, initialOrgId }: WorkspaceClientProp
       }
 
       if (zone === "rows" && componentType === "DIMENSION") {
-        setPrimaryRowDimension(panelId, componentKey);
-        await runPanelQuery(panelId);
+        const panel = useWorkspaceStore
+          .getState()
+          .panels.find((entry) => entry.id === panelId);
+        if (!panel) {
+          return;
+        }
+
+        const changed =
+          panel.query.rows.length === 0
+            ? setPrimaryRowDimension(panelId, componentKey)
+            : panel.query.rows[0] === "day" && componentKey === "hour"
+              ? addBreakdownRowDimension(panelId, componentKey)
+              : setPrimaryRowDimension(panelId, componentKey);
+        if (changed) {
+          await runPanelQuery(panelId);
+        }
         return;
       }
 
@@ -1188,8 +1226,22 @@ export function WorkspaceClient({ projectId, initialOrgId }: WorkspaceClientProp
       }
 
       if (zone === "metrics" && componentType === "DIMENSION") {
-        setPrimaryRowDimension(panelId, componentKey);
-        await runPanelQuery(panelId);
+        const panel = useWorkspaceStore
+          .getState()
+          .panels.find((entry) => entry.id === panelId);
+        if (!panel) {
+          return;
+        }
+
+        const changed =
+          panel.query.rows.length === 0
+            ? setPrimaryRowDimension(panelId, componentKey)
+            : panel.query.rows[0] === "day" && componentKey === "hour"
+              ? addBreakdownRowDimension(panelId, componentKey)
+              : setPrimaryRowDimension(panelId, componentKey);
+        if (changed) {
+          await runPanelQuery(panelId);
+        }
         return;
       }
 
@@ -1214,6 +1266,7 @@ export function WorkspaceClient({ projectId, initialOrgId }: WorkspaceClientProp
     },
     [
       addMetricColumn,
+      addBreakdownRowDimension,
       runPanelQuery,
       setPrimaryRowDimension,
       setDateRangePreset,
@@ -1282,15 +1335,35 @@ export function WorkspaceClient({ projectId, initialOrgId }: WorkspaceClientProp
               } else {
                 answer = `${dimensionLabel} is not in this panel.`;
               }
+            } else if (command.action === "add") {
+              const changed =
+                currentPanel.query.rows.length > 0 &&
+                currentPanel.query.rows[0] === "day" &&
+                command.dimension === "hour"
+                  ? addBreakdownRowDimension(activePanelId, command.dimension)
+                  : setPrimaryRowDimension(activePanelId, command.dimension);
+              if (changed) {
+                await runPanelQuery(activePanelId);
+                answer =
+                  command.dimension === "hour" && currentPanel.query.rows[0] === "day"
+                    ? `Added ${dimensionLabel} breakdown under Day.`
+                    : `Set dimension to ${dimensionLabel}.`;
+              } else {
+                answer = `${dimensionLabel} is already active.`;
+              }
             } else if (
               currentPanel.query.rows.length === 1 &&
               currentPanel.query.rows[0] === command.dimension
             ) {
               answer = `${dimensionLabel} is already active.`;
             } else {
-              setPrimaryRowDimension(activePanelId, command.dimension);
-              await runPanelQuery(activePanelId);
-              answer = `Set dimension to ${dimensionLabel}.`;
+              const changed = setPrimaryRowDimension(activePanelId, command.dimension);
+              if (changed) {
+                await runPanelQuery(activePanelId);
+                answer = `Set dimension to ${dimensionLabel}.`;
+              } else {
+                answer = `${dimensionLabel} is already active.`;
+              }
             }
           }
         }
@@ -1317,6 +1390,7 @@ export function WorkspaceClient({ projectId, initialOrgId }: WorkspaceClientProp
       activePanel,
       activePanelId,
       addMetricColumn,
+      addBreakdownRowDimension,
       contextInput,
       labelMap,
       removeRowDimension,
@@ -1333,8 +1407,22 @@ export function WorkspaceClient({ projectId, initialOrgId }: WorkspaceClientProp
       }
 
       if (component.type === "DIMENSION") {
-        setPrimaryRowDimension(activePanelId, component.key);
-        await runPanelQuery(activePanelId);
+        const panel = useWorkspaceStore
+          .getState()
+          .panels.find((entry) => entry.id === activePanelId);
+        if (!panel) {
+          return;
+        }
+
+        const changed =
+          panel.query.rows.length === 0
+            ? setPrimaryRowDimension(activePanelId, component.key)
+            : panel.query.rows[0] === "day" && component.key === "hour"
+              ? addBreakdownRowDimension(activePanelId, component.key)
+              : setPrimaryRowDimension(activePanelId, component.key);
+        if (changed) {
+          await runPanelQuery(activePanelId);
+        }
         return;
       }
 
@@ -1361,6 +1449,7 @@ export function WorkspaceClient({ projectId, initialOrgId }: WorkspaceClientProp
     [
       activePanelId,
       addMetricColumn,
+      addBreakdownRowDimension,
       runPanelQuery,
       setPrimaryRowDimension,
       setDateRangePreset,
@@ -1517,7 +1606,7 @@ export function WorkspaceClient({ projectId, initialOrgId }: WorkspaceClientProp
   return (
     <div className="relative left-1/2 w-screen -translate-x-1/2 space-y-5 px-6">
       {error ? <p className="text-sm text-rose-600">{error}</p> : null}
-      <DndContext onDragEnd={(event) => void onDragEnd(event)}>
+      <DndContext autoScroll={false} onDragEnd={(event) => void onDragEnd(event)}>
         <div className="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
           <aside className="space-y-3">
             <Card className="space-y-3">
@@ -1593,7 +1682,7 @@ export function WorkspaceClient({ projectId, initialOrgId }: WorkspaceClientProp
               <div
                 key={panel.id}
                 onClick={() => setSelectedPanel(panel.id)}
-                className={`min-h-[420px] resize-y overflow-auto rounded-lg border ${
+                className={`min-h-[420px] rounded-lg border ${
                   panel.id === activePanelId ? "border-slate-900" : "border-transparent"
                 }`}
               >
@@ -1675,7 +1764,7 @@ export function WorkspaceClient({ projectId, initialOrgId }: WorkspaceClientProp
                             {panel.result ? (
                               <div className="space-y-2">
                                 <FreeformTable
-                                  rowDimension={panel.query.rows[0] ?? null}
+                                  rowDimensions={panel.query.rows}
                                   metrics={panel.query.metrics}
                                   rows={panel.result.rows}
                                   totals={panel.result.totals}
